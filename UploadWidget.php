@@ -10,6 +10,7 @@ namespace deanar\fileProcessor;
 use \Yii;
 use yii\helpers\Html;
 use yii\helpers\Json;
+use deanar\fileProcessor\FileProcessor;
 use deanar\fileProcessor\models;
 use deanar\fileProcessor\assets\UploadAssets;
 use yii\helpers\Url;
@@ -58,7 +59,7 @@ class UploadWidget extends \yii\base\Widget
             if( !in_array($option_name, $this->options_allowed)) continue;
 
             if($option_name == 'maxSize'){
-                $option_value = models\Uploads::sizeToBytes($option_value);
+                $option_value = models\FileStorage::sizeToBytes($option_value);
             }
 
             $return .= $option_name . ' : ' . json_encode($option_value) . ',' . PHP_EOL;
@@ -80,7 +81,7 @@ class UploadWidget extends \yii\base\Widget
             Yii::$app->request->csrfParam => Yii::$app->request->getCsrfToken(),
         ));
 
-        $alreadyUploadedFiles = Json::encode(models\Uploads::getUploadsStack($this->type, $this->type_id));
+        $alreadyUploadedFiles = Json::encode(FileProcessor::getUploadsStack($this->type, $this->type_id));
 
 
         $fileApiInitSettings = <<<EOF

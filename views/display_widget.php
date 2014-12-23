@@ -11,7 +11,7 @@
     <?
     foreach ($uploads as $upload) {
         /**
-         * @var $upload deanar\fileProcessor\models\Uploads;
+         * @var $upload deanar\fileProcessor\models\FileStorage;
          */
         $htmlOptions['title'] = $upload->original;
         if ($upload->isImage()) {

@@ -8,7 +8,7 @@
 
 namespace deanar\fileProcessor\behaviours;
 
-use deanar\fileProcessor\models\Uploads;
+use deanar\fileProcessor\models\FileStorage;
 use yii;
 use yii\base\Behavior;
 use yii\db\ActiveRecord;
@@ -42,14 +42,14 @@ class ConnectFileSequence extends Behavior
         $type_id = $this->owner->id;
         $types = $this->deleteTypes;
 
-        $files = Uploads::find()->where([
+        $files = FileStorage::find()->where([
                 'type' => $types,
                 'type_id' => $type_id,
             ]
         )->all();
 
         foreach($files as $file){
-            /** @var Uploads $file */
+            /** @var FileStorage $file */
             $file->removeFile();
         }
     }
@@ -59,7 +59,7 @@ class ConnectFileSequence extends Behavior
         $hashes = Yii::$app->request->post('fp_hash');
 
         foreach($hashes as $hash){
-            Uploads::updateAll(['type_id' => $type_id], 'hash=:hash', [':hash' => $hash]);
+            FileStorage::updateAll(['type_id' => $type_id], 'hash=:hash', [':hash' => $hash]);
         }
     }
 
@@ -92,13 +92,13 @@ class ConnectFileSequence extends Behavior
                 $condition = '';
         }
 
-        return $this->owner->hasMany( Uploads::className(), ['type_id' => 'id'] )
+        return $this->owner->hasMany( FileStorage::className(), ['type_id' => 'id'] )
             ->andOnCondition('type =:type',[':type' => $type])
             ->where($condition)
             ->orderBy('ord')->all();
     }
 
     public function getFirstFile($type=null){
-        return isset($this->getFiles($type)[0]) ? $this->getFiles($type)[0] : new Uploads();
+        return isset($this->getFiles($type)[0]) ? $this->getFiles($type)[0] : new FileStorage();
     }
 }

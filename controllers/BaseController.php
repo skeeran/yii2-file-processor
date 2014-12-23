@@ -10,7 +10,9 @@ use yii\helpers\FileHelper;
 use yii\web\UploadedFile;
 use dosamigos\transliterator\TransliteratorHelper;
 use deanar\fileProcessor\vendor\FileAPI;
-use deanar\fileProcessor\models\Uploads;
+use deanar\fileProcessor\FileProcessor;
+use deanar\fileProcessor\models\FileStorage;
+use deanar\fileProcessor\models\FileSequence;
 use deanar\fileProcessor\Module;
 
 // only for tests
@@ -39,11 +41,11 @@ class BaseController extends \yii\web\Controller
     {
         // TODO check for POST request
 
-        $id = Yii::$app->request->post('id');
-        $type = Yii::$app->request->post('type');
-        $type_id = Yii::$app->request->post('type_id');
+        $id         = Yii::$app->request->post('id');
+        $type       = Yii::$app->request->post('type');
+        $type_id    = Yii::$app->request->post('type_id');
 
-        $success = Uploads::staticRemoveFile($id, compact('type', 'type_id'));
+        $success = FileSequence::staticRemoveFile($id, compact('type', 'type_id'));
 
         if ($success) {
             return 'File with id: ' . $id . ' removed successfully';
@@ -54,8 +56,6 @@ class BaseController extends \yii\web\Controller
 
     public function actionUpload()
     {
-        //Yii::$app->getRequest()->enableCsrfValidation = false;
-
         if (!empty($_SERVER['HTTP_ORIGIN'])) {
             // Enable CORS
             header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
@@ -75,7 +75,6 @@ class BaseController extends \yii\web\Controller
 
             // Fetch all image-info from files list
             $this->fetchFiles($files, $images);
-
 
             // JSONP callback name
             $jsonp = isset($_REQUEST['callback']) ? trim($_REQUEST['callback']) : null;
@@ -126,12 +125,8 @@ class BaseController extends \yii\web\Controller
                 }
 
                 // insert into db
-                $model = new Uploads();
-                $model->type = $type;
-                $model->type_id = $type_id;
-                $model->hash = $hash;
-                $model->ord = Uploads::getMaxOrderValue($type, $type_id, $hash) + 1;
-                $model->filename = Uploads::generateBaseFileName($file_real_name);
+                $model = new FileStorage();
+                $model->filename = FileStorage::generateBaseFileName($file_real_name);
                 $model->original = $file_real_name;
                 $model->mime = $mime;
                 $model->size = filesize($file_temp_name);
@@ -141,22 +136,28 @@ class BaseController extends \yii\web\Controller
                 // save model, save file and fill response array
                 if ($model->save()) {
 
+                    $sequence = new FileSequence(); // maybe static better?
+                    $sequence->attachFile($model, $type, $type_id, $hash); // add error handling
+
                     // load configuration
-                    $config = Uploads::loadVariationsConfig($model->type);
+                    $config = FileProcessor::loadVariationsConfig($sequence->type);
 
                     // upload and process variations
                     $model->process($file_temp_name, $config);
 
                     $images[$name] = [
-                        'width' => $model->width,
-                        'height' => $model->height,
-                        'mime' => $model->mime,
-                        'size' => $model->size,
-                        'id' => $model->id,
-                        'type' => $model->type,
-                        'type_id' => $model->type_id,
-                        'hash' => $model->hash,
-                        'errors' => null,
+                        // file
+                        'width'     => $model->width,
+                        'height'    => $model->height,
+                        'mime'      => $model->mime,
+                        'size'      => $model->size,
+
+                        // sequence
+                        'id'        => $sequence->id,
+                        'type'      => $sequence->type,
+                        'type_id'   => $sequence->type_id,
+                        'hash'      => $sequence->hash,
+                        'errors'    => null,
                     ];
 
                 } else {
@@ -180,7 +181,7 @@ class BaseController extends \yii\web\Controller
         if( !is_array($sort)) return false;
 
         foreach ($sort as $k => $v) {
-            $file = Uploads::findOne($v);
+            $file = FileStorage::findOne($v);
             if(is_null($file)) continue;
             $file->ord = $k;
             $file->save();
